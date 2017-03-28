@@ -197,4 +197,94 @@ high_price <- diamonds %>%
 #     DATA.TABLE        #
 #                       #
 #########################
+library(data.table)
+
+products <- fread("stepik/products.csv")
+
+products[, list(name = name,
+                price.1k = price / 1000)]
+products[order(price, decreasing = T),
+         list(name, price.1k = paste0((price / 1000), "тыс. руб."))]
+
+# list == .
+products[order(-price), 
+         .(name, price.1k = paste0((price / 1000), " тыс.руб"))]
+
+products[, .(price = sum(price))]
+# by - параметр для аггрегации
+
+products[order(-price), .(name = head(name, 3), price = head(price, 3)),
+         by = brand]
+
+# filter expensive
+
+filter.expensive.available <- function(dt, brands){
+  dt[brand %in% brands & price >= 5000 & available == TRUE]
+  # в задании на сайте цена была в копейках, так что надо 5к домножить на 100
+}
+
+filter.expensive.available(products, c("Lenovo", "Sennheiser"))
+
+# ordered.short.purchase.data
+purchases <- fread("stepik/purchases.csv")
+ordered.short.purchase.data <- function(purch){
+  purch[order(-pricecents)][quantity > 0, .(ordernumber, product_id)]
+  # в задании на сайте была price, а не pricecents
+}
+
+ordered.short.purchase.data(purchases)
+
+# purchases.median.order.price
+sample.purchases <- data.table(price = c(100000, 6000, 7000, 5000000),
+                               ordernumber = c(1,2,2,3),
+                               quantity = c(1,2,1,-1),
+                               product_id = 1:4)
+
+purchases.median.order.price <- function(purchappa){
+  med <- purchappa[quantity > 0][, .(ordernumber, price = price * quantity)]
+  med <- med[, .(price = sum(price)), by = ordernumber]
+  return(median(med$price))
+}
+
+purchases.median.order.price(sample.purchases)
+
+# вариант из ответа:
+purchases.median.order.price <- function(purchases) {    
+  median(purchases[quantity >= 0][, list(w = sum(price * quantity)), by=list(ordernumber)]$w)}
+
+# .SD применение
+
+products[order(-price),
+         .(price = head(price, 3),
+           name = head(price, 3),
+           product_id = head(product_id, 3), 
+           available = head(available, 3),
+           brand = head(brand, 3)),
+         by = brand]
+
+products[order(-price),
+         head(.SD, 3),
+         by = brand]
+
+# .N
+
+products[order(-price),
+         .(meanprice = mean(price),
+           amount_by_brand = .N),
+         by = brand]
+
+# set :=
+
+products2 <- products
+
+str(products2)
+
+products2[, sqrprice := sqrt(price)]
+
+products2[, c("name", "brand") := list(tolower(name), paste(brand, "Inc."))]
+
+products2
+
+# := changes data.table on the fly, w/o copying it, but environment in RStudio
+# might miss it so you should check in console if your dt changed
 
